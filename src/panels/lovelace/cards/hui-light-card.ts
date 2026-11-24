@@ -2,7 +2,7 @@ import { mdiDotsVertical } from "@mdi/js";
 import type { HassConfig } from "home-assistant-js-websocket";
 import type { PropertyValues } from "lit";
 import { LitElement, css, html, nothing } from "lit";
-import { customElement, query, state } from "lit/decorators";
+import { customElement, state } from "lit/decorators";
 import { classMap } from "lit/directives/class-map";
 import { styleMap } from "lit/directives/style-map";
 import { consume } from "../../../common/decorators/consume";
@@ -46,6 +46,9 @@ import { hasAction } from "../common/has-action";
 import { createEntityNotFoundWarning } from "../components/hui-warning";
 import type { LovelaceCard, LovelaceCardEditor } from "../types";
 import type { LightCardConfig } from "./types";
+
+const BRIGHTNESS_HIDE_DELAY = 500;
+const BRIGHTNESS_FALLBACK_HIDE_DELAY = 3000;
 
 @customElement("hui-light-card")
 export class HuiLightCard extends LitElement implements LovelaceCard {
@@ -107,9 +110,11 @@ export class HuiLightCard extends LitElement implements LovelaceCard {
   @consume({ context: apiContext, subscribe: true })
   private _api!: HomeAssistantApi;
 
-  private _brightnessTimout?: number;
+  @state() private _brightnessPreview?: number;
 
-  @query(".brightness") private _brightness?: HTMLElement;
+  @state() private _showBrightnessPreview = false;
+
+  private _brightnessTimout?: number;
 
   public getCardSize(): number {
     return 5;
@@ -212,7 +217,15 @@ export class HuiLightCard extends LitElement implements LovelaceCard {
                 ? html`
                     <div>${this._formatters.formatEntityState(stateObj)}</div>
                   `
-                : html` <div class="brightness">%</div> `
+                : html`
+                    <div
+                      class="brightness ${classMap({
+                        show_brightness: this._showBrightnessPreview,
+                      })}"
+                    >
+                      ${this._brightnessPreview ?? ""} %
+                    </div>
+                  `
             }
             ${name}
           </div>
@@ -241,28 +254,28 @@ export class HuiLightCard extends LitElement implements LovelaceCard {
     }
   }
 
+  public disconnectedCallback(): void {
+    super.disconnectedCallback();
+    clearTimeout(this._brightnessTimout);
+  }
+
   private _dragEvent(ev: HASSDomEvent<HASSDomEvents["value-changing"]>): void {
     const { value } = ev.detail;
     if (value === undefined) {
-      this._hideBrightness();
+      this._hideBrightness(BRIGHTNESS_HIDE_DELAY);
       return;
     }
     if (typeof value !== "number" || isNaN(value)) return;
-    if (!this._brightness) return;
-    this._brightness.innerHTML = `${value} %`;
-    this._showBrightness();
+    this._brightnessPreview = value;
+    this._showBrightnessPreview = true;
+    this._hideBrightness(BRIGHTNESS_FALLBACK_HIDE_DELAY);
   }
 
-  private _showBrightness(): void {
-    clearTimeout(this._brightnessTimout);
-    this._brightness?.classList.add("show_brightness");
-  }
-
-  private _hideBrightness(): void {
+  private _hideBrightness(delay: number): void {
     clearTimeout(this._brightnessTimout);
     this._brightnessTimout = window.setTimeout(() => {
-      this._brightness?.classList.remove("show_brightness");
-    }, 500);
+      this._showBrightnessPreview = false;
+    }, delay);
   }
 
   private _setBrightness(
