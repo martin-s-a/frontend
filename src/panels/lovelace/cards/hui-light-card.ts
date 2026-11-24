@@ -2,7 +2,7 @@ import { mdiDotsVertical } from "@mdi/js";
 import type { HassConfig } from "home-assistant-js-websocket";
 import type { PropertyValues } from "lit";
 import { LitElement, css, html, nothing } from "lit";
-import { customElement, state } from "lit/decorators";
+import { customElement, query, state } from "lit/decorators";
 import { classMap } from "lit/directives/class-map";
 import { styleMap } from "lit/directives/style-map";
 import { consume } from "../../../common/decorators/consume";
@@ -108,6 +108,8 @@ export class HuiLightCard extends LitElement implements LovelaceCard {
   private _api!: HomeAssistantApi;
 
   private _brightnessTimout?: number;
+
+  @query(".brightness") private _brightness?: HTMLElement;
 
   public getCardSize(): number {
     return 5;
@@ -246,22 +248,20 @@ export class HuiLightCard extends LitElement implements LovelaceCard {
       return;
     }
     if (typeof value !== "number" || isNaN(value)) return;
-    this.shadowRoot!.querySelector(".brightness")!.innerHTML = `${value} %`;
+    if (!this._brightness) return;
+    this._brightness.innerHTML = `${value} %`;
     this._showBrightness();
   }
 
   private _showBrightness(): void {
     clearTimeout(this._brightnessTimout);
-    this.shadowRoot!.querySelector(".brightness")!.classList.add(
-      "show_brightness"
-    );
+    this._brightness?.classList.add("show_brightness");
   }
 
   private _hideBrightness(): void {
+    clearTimeout(this._brightnessTimout);
     this._brightnessTimout = window.setTimeout(() => {
-      this.shadowRoot!.querySelector(".brightness")!.classList.remove(
-        "show_brightness"
-      );
+      this._brightness?.classList.remove("show_brightness");
     }, 500);
   }
 
