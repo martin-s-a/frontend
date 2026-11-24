@@ -146,6 +146,7 @@ export const ManualEditorMixin = <TConfig>(
         return nothing;
       }
       return renderErrorsAlert(
+        this.hass.localize,
         this.configErrors.filter(
           (error) => !errorOwner(this.rowRegistry, error)
         )
